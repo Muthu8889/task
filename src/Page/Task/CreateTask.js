@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import {
   TextField,
@@ -7,25 +7,71 @@ import {
   Select,
   MenuItem,
   InputLabel,
+  Snackbar,
 } from "@material-ui/core";
 import { formComponent } from "./TaskComponentData";
 import { useFormik } from "formik";
+import { isEmpty } from "lodash-es";
+import MuiAlert from "@material-ui/lab/Alert";
+
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
 
 const useStyles = makeStyles((theme) => ({
-    root: {
-      flexGrow: 1,
-      backgroundColor: theme.palette.background.paper,
-    },
-  }));
+  root: {
+    flexGrow: 1,
+    backgroundColor: theme.palette.background.paper,
+  },
+}));
 
 function CreateTask() {
   const [formValues, setFormValues] = useState({});
   const [dropDownValue, setDropDownValue] = useState("");
-//   const [dropDownOptions, setDropDownOptions] = useState([]);
+  const [userDetails, setUserDetails] = useState([]);
+  const [dropDownOptions, setDropDownOptions] = useState([]);
+  const [openToastMsg, setOpenToastMsg] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => {
+    fetch("/api/users")
+      .then((res) => res.json())
+      .then((json) => setUserDetails(json.users));
+  }, []);
+
+  useEffect(() => {
+    if (!isEmpty(userDetails)) {
+      let dropDownOptionsTemp = [];
+      !isEmpty(userDetails) &&
+        userDetails.map((item) => {
+          let tempObj = {
+            value: "",
+            label: "",
+          };
+          tempObj.value = item.id;
+          tempObj.label = `${item.firstName} ${item.lastName}`;
+          dropDownOptionsTemp.push(tempObj);
+          return item;
+        });
+      setDropDownOptions(dropDownOptionsTemp);
+    }
+  }, [userDetails]);
   const classes = useStyles();
   const formik = useFormik({
     initialValues: formValues,
-    onSubmit: (values) => {
+    onSubmit: async (values) => {
+      try {
+        const res = await fetch("/api/editUser", {
+          method: "POST",
+          body: JSON.stringify(values),
+        });
+        const json = await res.json();
+        const message = json.message;
+        setOpenToastMsg(true);
+        setSuccessMsg(message);
+      } catch (err) {
+        console.log(err);
+      }
       setFormValues(values);
     },
     handleChange: (values) => {
@@ -33,10 +79,14 @@ function CreateTask() {
     },
   });
 
-  const dropDownChange = e => {
+  const dropDownChange = (e) => {
     setDropDownValue(e.target.value);
     console.log("Muthu", e);
-  }
+  };
+
+  const handleToastClose = (data) => {
+    setOpenToastMsg(false);
+  };
 
   return (
     <div style={{ padding: "0px 100px 75px 100px" }}>
@@ -70,12 +120,12 @@ function CreateTask() {
                       onChange={dropDownChange}
                       label="Age"
                     >
-                      <MenuItem value="">
-                        <em>None</em>
-                      </MenuItem>
-                      <MenuItem value={10}>Ten</MenuItem>
-                      <MenuItem value={20}>Twenty</MenuItem>
-                      <MenuItem value={30}>Thirty</MenuItem>
+                      {dropDownOptions &&
+                        dropDownOptions.map((item) => {
+                          return (
+                            <MenuItem value={item.value}>{item.label}</MenuItem>
+                          );
+                        })}
                     </Select>
                   </FormControl>
                 </div>
@@ -97,6 +147,16 @@ function CreateTask() {
           </Button>
         </div>
       </form>
+      <Snackbar
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        open={openToastMsg}
+        autoHideDuration={6000}
+        onClose={handleToastClose}
+      >
+        <Alert onClose={handleToastClose} severity="success">
+          {successMsg}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }

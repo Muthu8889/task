@@ -2,21 +2,47 @@ import React, { useState } from "react";
 import {
   TextField,
   Button,
+  Snackbar,
 } from "@material-ui/core";
 import { formComponent } from "./UserComponentData";
 import { useFormik } from "formik";
+import MuiAlert from "@material-ui/lab/Alert";
+
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
 
 function AddUser() {
   const [formValues, setFormValues] = useState({});
+  const [openToastMsg, setOpenToastMsg] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  
   const formik = useFormik({
     initialValues: formValues,
-    onSubmit: (values) => {
+    onSubmit: async (values) => {
+      try {
+        const res = await fetch("/api/editUser", {
+          method: "POST",
+          body: JSON.stringify(values),
+        });
+        const json = await res.json();
+        const message = json.message;
+        setOpenToastMsg(true);
+        setSuccessMsg(message);
+      } catch (err) {
+        console.log(err);
+      }
       setFormValues(values);
     },
-    handleChange: (values) => {
-      console.log("Muthu", values);
+    handleChange: async(values) => {
+      
     },
   });
+
+  const handleToastClose = (data) => {
+    setOpenToastMsg(false);
+  };
 
   return (
     <div style={{ padding: "0px 100px 75px 100px" }}>
@@ -50,6 +76,16 @@ function AddUser() {
           </Button>
         </div>
       </form>
+      <Snackbar
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        open={openToastMsg}
+        autoHideDuration={6000}
+        onClose={handleToastClose}
+      >
+        <Alert onClose={handleToastClose} severity="success">
+          {successMsg}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
